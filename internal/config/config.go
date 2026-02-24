@@ -46,7 +46,7 @@ type JWTConfig struct {
 	Expiry time.Duration
 }
 
-func Load() *Config {
+func Load() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		slog.Warn("No .env file found. using environment variables")
 	}
@@ -82,7 +82,7 @@ func Load() *Config {
 		},
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 func getEnv(key, defaultValue string) string {
