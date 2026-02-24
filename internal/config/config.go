@@ -103,7 +103,7 @@ func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
 }
 
 func (c *DatabaseConfig) DSN() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s db_name=%s sslmode=%s",
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.Host, c.Port, c.User, c.Password, c.Name, c.SSLMode,
 	)
 }
