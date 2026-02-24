@@ -1,7 +1,14 @@
 package domain
 
 import (
+	"errors"
 	"time"
+)
+
+var (
+	ErrTodoNotFound      = errors.New("todo not found")
+	ErrTodoAlreadyExists = errors.New("todo already exists")
+	ErrInvalidTodoID     = errors.New("invalid todo ID")
 )
 
 type TodoStatus string
