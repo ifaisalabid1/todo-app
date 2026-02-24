@@ -14,7 +14,6 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Log      LogConfig
-	JWT      JWTConfig
 }
 
 type ServerConfig struct {
@@ -39,11 +38,6 @@ type DatabaseConfig struct {
 type LogConfig struct {
 	Level  string
 	Format string
-}
-
-type JWTConfig struct {
-	Secret string
-	Expiry time.Duration
 }
 
 func Load() (*Config, error) {
@@ -74,11 +68,6 @@ func Load() (*Config, error) {
 		Log: LogConfig{
 			Level:  getEnv("LOG_LEVEL", "debug"),
 			Format: getEnv("LOG_FORMAT", "json"),
-		},
-
-		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", "your-super-secret-key-change-in-production"),
-			Expiry: getEnvAsDuration("JWT_EXPIRY", 15*time.Minute),
 		},
 	}
 
