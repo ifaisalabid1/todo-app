@@ -40,7 +40,7 @@ func main() {
 	todoService := service.NewTodoService(todoRepo, logger)
 	todoHandler := handler.NewTodoHandler(todoService)
 
-	routes := setupRoutes(todoHandler, logger)
+	routes := setupRoutes(todoHandler)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
@@ -85,7 +85,7 @@ func getSlogLevel(level string) slog.Level {
 	}
 }
 
-func setupRoutes(todoHandler *handler.TodoHandler, logger *slog.Logger) *chi.Mux {
+func setupRoutes(todoHandler *handler.TodoHandler) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -101,6 +101,10 @@ func setupRoutes(todoHandler *handler.TodoHandler, logger *slog.Logger) *chi.Mux
 		w.WriteHeader(http.StatusOK)
 
 		fmt.Fprintf(w, `{"status": "healthy", "timestamp": %s}`, now)
+	})
+
+	r.Route("/api/v1", func(r chi.Router) {
+		todoHandler.RegisterRoutes(r)
 	})
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {

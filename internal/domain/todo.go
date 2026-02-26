@@ -34,7 +34,7 @@ type Todo struct {
 type CreateTodoInput struct {
 	Title       string     `json:"title" validate:"required,min=1,max=255"`
 	Description string     `json:"description" validate:"required,min=1,max=500"`
-	Status      TodoStatus `json:"status"`
+	Status      TodoStatus `json:"status" validate:"oneof=pending in_progress completed"`
 	DueDate     time.Time  `json:"due_date,omitzero"`
 }
 
