@@ -3,6 +3,8 @@ package domain
 import (
 	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -20,7 +22,7 @@ const (
 )
 
 type Todo struct {
-	ID          string     `json:"id"`
+	ID          uuid.UUID  `json:"id"`
 	Title       string     `json:"title"`
 	Description string     `json:"description"`
 	Status      TodoStatus `json:"status"`
