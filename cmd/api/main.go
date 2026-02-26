@@ -2,11 +2,20 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
+	"net/http"
 	"os"
+	"strings"
+	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ifaisalabid1/todo-app/internal/config"
 	"github.com/ifaisalabid1/todo-app/internal/database"
+	"github.com/ifaisalabid1/todo-app/internal/handler"
+	"github.com/ifaisalabid1/todo-app/internal/repository"
+	"github.com/ifaisalabid1/todo-app/internal/service"
 )
 
 func main() {
@@ -16,7 +25,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := slog.Default()
+	logger := setupLogger(cfg)
 
 	logger.Info("starting server", slog.String("env", cfg.Server.Env), slog.String("host", cfg.Server.Host), slog.String("port", cfg.Server.Port))
 
@@ -26,4 +35,85 @@ func main() {
 		os.Exit(1)
 	}
 	defer database.ClosePool(pool)
+
+	todoRepo := repository.NewTodoRepository(pool)
+	todoService := service.NewTodoService(todoRepo, logger)
+	todoHandler := handler.NewTodoHandler(todoService)
+
+	routes := setupRoutes(todoHandler, logger)
+
+	srv := &http.Server{
+		Addr:         fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
+		Handler:      routes,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  time.Minute,
+	}
+
+	err = srv.ListenAndServe()
+	log.Println(err)
+}
+
+func setupLogger(cfg *config.Config) *slog.Logger {
+	var handler slog.Handler
+
+	if cfg.Log.Format == "json" {
+		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: getSlogLevel(cfg.Log.Level),
+		})
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: getSlogLevel(cfg.Log.Level),
+		})
+	}
+
+	return slog.New(handler)
+}
+
+func getSlogLevel(level string) slog.Level {
+	switch strings.ToLower(level) {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+func setupRoutes(todoHandler *handler.TodoHandler, logger *slog.Logger) *chi.Mux {
+	r := chi.NewRouter()
+
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Timeout(time.Minute))
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		fmt.Fprintf(w, `{"status": "healthy", "timestamp": %s}`, now)
+	})
+
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, `{"success": "false", "message": "endpoint not found", "timestamp": %s}`, now)
+	})
+
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintf(w, `{"success": "false", "message": "method not allowed", "timestamp": %s}`, now)
+	})
+
+	return r
 }
