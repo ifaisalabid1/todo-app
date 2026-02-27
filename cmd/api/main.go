@@ -16,6 +16,7 @@ import (
 	"github.com/ifaisalabid1/todo-app/internal/config"
 	"github.com/ifaisalabid1/todo-app/internal/database"
 	"github.com/ifaisalabid1/todo-app/internal/handler"
+	customMiddleware "github.com/ifaisalabid1/todo-app/internal/middleware"
 	"github.com/ifaisalabid1/todo-app/internal/repository"
 	"github.com/ifaisalabid1/todo-app/internal/service"
 )
@@ -42,7 +43,7 @@ func main() {
 	todoService := service.NewTodoService(todoRepo, logger)
 	todoHandler := handler.NewTodoHandler(todoService)
 
-	router := setupRoutes(todoHandler)
+	router := setupRoutes(todoHandler, logger)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
@@ -55,7 +56,7 @@ func main() {
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		logger.Info("server listening on ", slog.String("addr", srv.Addr))
+		logger.Info("server listening", slog.String("addr", srv.Addr))
 		serverErrors <- srv.ListenAndServe()
 	}()
 
@@ -114,7 +115,7 @@ func getSlogLevel(level string) slog.Level {
 	}
 }
 
-func setupRoutes(todoHandler *handler.TodoHandler) *chi.Mux {
+func setupRoutes(todoHandler *handler.TodoHandler, logger *slog.Logger) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -122,6 +123,8 @@ func setupRoutes(todoHandler *handler.TodoHandler) *chi.Mux {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Timeout(time.Minute))
+	r.Use(customMiddleware.Logging(logger))
+	r.Use(customMiddleware.Recovery(logger))
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
