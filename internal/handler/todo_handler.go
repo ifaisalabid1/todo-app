@@ -26,8 +26,7 @@ func (h *TodoHandler) RegisterRoutes(router chi.Router) {
 		r.Post("/", h.CreateTodo)
 		r.Route("/{id}", func(r chi.Router) {
 			r.Get("/", h.GetTodoByID)
-			r.Put("/", h.UpdateTodo)
-			r.Patch("/", h.PartialUpdateTodo)
+			r.Patch("/", h.UpdateTodo)
 			r.Delete("/", h.DeleteTodo)
 		})
 	})
@@ -108,10 +107,6 @@ func (h *TodoHandler) UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusOK, "todo updated successfully", todo)
-}
-
-func (h *TodoHandler) PartialUpdateTodo(w http.ResponseWriter, r *http.Request) {
-	h.UpdateTodo(w, r)
 }
 
 func (h *TodoHandler) DeleteTodo(w http.ResponseWriter, r *http.Request) {
