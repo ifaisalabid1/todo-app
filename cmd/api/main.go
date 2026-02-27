@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -40,18 +42,45 @@ func main() {
 	todoService := service.NewTodoService(todoRepo, logger)
 	todoHandler := handler.NewTodoHandler(todoService)
 
-	routes := setupRoutes(todoHandler)
+	router := setupRoutes(todoHandler)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port),
-		Handler:      routes,
+		Handler:      router,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  time.Minute,
 	}
 
-	err = srv.ListenAndServe()
-	log.Println(err)
+	serverErrors := make(chan error, 1)
+
+	go func() {
+		logger.Info("server listening on ", slog.String("addr", srv.Addr))
+		serverErrors <- srv.ListenAndServe()
+	}()
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrors:
+		logger.Error("server error", slog.String("error", err.Error()))
+		os.Exit(1)
+	case sig := <-shutdown:
+		logger.Info("shutdown signal received", slog.String("signal", sig.String()))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			logger.Error("server shutdown error", slog.String("error", err.Error()))
+			srv.Close()
+			os.Exit(1)
+		}
+
+		logger.Info("server stopped gracefully")
+
+	}
 }
 
 func setupLogger(cfg *config.Config) *slog.Logger {
